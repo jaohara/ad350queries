@@ -22,7 +22,8 @@ const voters = voterModel.find();
 const demographics = [[18,29], [30,44], [45,64], [65,undefined]];
 const states = ['Alabama','Alaska','American Samoa','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','District of Columbia','Federated States of Micronesia','Florida','Georgia','Guam','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Marshall Islands','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Northern Mariana Islands','Ohio','Oklahoma','Oregon','Palau','Pennsylvania','Puerto Rico','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virgin Island','Virginia','Washington','West Virginia','Wisconsin','Wyoming'];
 
-
+// gets a date a certain number of years before now 
+//  - if years is undefined, returns the date 150 years before now
 const yearsBeforeNow = (years) => {
   let current = new Date();  
   current.setFullYear(current.getFullYear() - (years !== undefined ? years : 150));
@@ -30,17 +31,8 @@ const yearsBeforeNow = (years) => {
 };
 
 // Gets the party of the most recent vote for a voter
-const getVoteParty = (voter) => {
-  let vote      = getMostRecentVoteFromVoter(voter);
-  let candidate = getCandidateFromVote(vote);
-  let voteParty = getPartyFromCandidate(candidate);
-  
-  if (candidate !== undefined) 
-    voteParty = parties.find(party => party.name === candidate.party_name);
-
-  return voteParty;
-};
-
+const getVoterPartyFromMostRecentVote = (voter) => 
+  getPartyFromCandidate(getCandidateFromVote(getMostRecentVoteFromVoter(voter)));
 
 const addToArrayIfNotIncluded = (item, array) => !array.includes(item) && [...array, item];
 
@@ -67,7 +59,7 @@ const getPartyCount = (voterbase) => {
   let partyCount = { "democrat": 0, "republican": 0, "other": 0 };
         
   voterbase.forEach(voter => {
-    let voteParty = getVoteParty(voter);
+    let voteParty = getVoterPartyFromMostRecentVote(voter);
     
     if (voteParty !== undefined) {
       let partyIndex = voteParty.toLowerCase();
@@ -84,6 +76,7 @@ const getPartyCount = (voterbase) => {
 ## Query Users by Age
 
 ```javascript
+// gets an array of party representation by voter age
 const getPartyRepresentationByAge = () => {
   const results = [];
   
@@ -128,11 +121,12 @@ const getPartyRepresentationByAge = () => {
   - Stacked bar graph chart to show Dems/Reps for each
 - Per-Candidate Pie Charts with percentage of total vote from each age bracket
 
-## Query Users by Region and Age
+## Query Users by State and Age
 
 
 ```javascript
-const getPartyRepresentationByAgeAndRegion = () => {
+// gets an array of party representation on a per state and age basis
+const getPartyRepresentationByAgeAndState = () => {
   const results = [];
 
   demographics.forEach(([ low, high ]) => {
@@ -209,31 +203,25 @@ const getPartyRepresentationByAgeAndRegion = () => {
 ## Query to Return Votes from Users who have voted for more than one Party
 
 ```javascript
+// gets an array of all users who have voted for more than one party as well as their vote history
 const getMultiPartyVoterTrends = () => {
   const results = [];
 
   voters.forEach(voter => {
-    let allVotes = [];
-    let partiesVoted = [];
+    const allVotes = [];
+    const partiesVoted = new Set();
     
     votes.forEach(vote => vote.voter_id === voter.id && allVotes.push(vote));
+    allVotes.forEach(vote => partiesVoted.add(getPartyFromVote(vote)));
 
-
-    allVotes.forEach(vote => 
-      !partiesVoted.includes(getPartyFromVote(vote)) && 
-      partiesVoted.push(getPartyFromVote(vote)));
-
-    if (partiesVoted.length > 1) {
-      let allVotesWithParty = [];
-
-      // reverse as it was in descending order
+    if (partiesVoted.size > 1) {
+      const allVotesWithParty = [];
       [...allVotes].reverse().forEach(vote => {
         allVotesWithParty.push({
           ...vote,
           party: getPartyFromVote(vote)
-        })
+        });
       });
-
 
       results.push({
         voter: voter,
@@ -241,6 +229,17 @@ const getMultiPartyVoterTrends = () => {
       });
     }
   });
+
+  /*
+    Conclusions to make here:
+
+      - Look for the number of times a user's vote changes party from the previous
+        vote
+      - Look for "dem - repub" differential - how far is a given voter from zero?
+        - Votes for dem increase Y, votes for repub decrease Y
+        - Further from 0 means more intensity towards a given position
+
+  */
 
   /*
     'results' now resembles:
@@ -270,10 +269,35 @@ const getMultiPartyVoterTrends = () => {
             party: "democrat"
           }
         ]
-      }
+      }, 
+      // ...
     ]
   */
 
   return results;
 };
+
+
+// gets all moderate voters - voters who have between 40-60% votes for each party
+const getModerateVoters = () => {
+  const multiPartyVoters = getMultiPartyVotingTrends();
+  const moderates = [];
+
+  multiPartyVoters.forEach(voter => {
+    const voteParties = { "democrat": 0, "republican": 0 };
+
+    voter.votes.forEach(vote => {
+      let party = getPartyFromVote(vote).toLowerCase();
+      Object.keys(voteParties).includes(party) && voteParties[party]++;
+    });
+
+    let { democrat, republican } = voteParties;
+    let totalVotes = democrat + republican;
+    let democratPercent = democrat / totalVotes;
+
+    democratPercent >= .4 && democratPercent < .6 && moderates.push(voter);
+  });
+
+  return moderates;
+}
 ```
