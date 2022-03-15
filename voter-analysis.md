@@ -2,7 +2,7 @@
 
 ## Voter Analysis
 
-This portion of our final lab will cover the ways in which we will make queries on the voterbase to get analyses and conclusions on their voting patterns. From data like this, we could extrapolate trends based on certain demographics, as well as consider the extent to which the votes cast were influenced by outside factors. Larger-scale pictures of the voting trends such as this will 
+This portion of our final lab will cover the ways in which we will make queries on the voterbase to get analyses and conclusions on their voting patterns. From data like this, we could extrapolate trends based on certain demographics, as well as consider the extent to which the votes cast were influenced by outside factors. Larger-scale pictures of the voting trends such as this will allow us to extract information about which parts are the most vulnerable to influence from outside voter manipulation. 
 
 
 ## Assuming this Setup
@@ -17,6 +17,7 @@ import { candidateModel, partyModel, voteModel, voterModel }
 const candidates = candidateModel.find();
 const parties = partyModel.find();
 const votes = voteModel.find().sort('-date'); // assuming votes have a "date" field
+const voters = voterModel.find();
 
 const demographics = [[18,29], [30,44], [45,64], [65,undefined]];
 const states = ['Alabama','Alaska','American Samoa','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','District of Columbia','Federated States of Micronesia','Florida','Georgia','Guam','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Marshall Islands','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Northern Mariana Islands','Ohio','Oklahoma','Oregon','Palau','Pennsylvania','Puerto Rico','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virgin Island','Virginia','Washington','West Virginia','Wisconsin','Wyoming'];
@@ -24,24 +25,35 @@ const states = ['Alabama','Alaska','American Samoa','Arizona','Arkansas','Califo
 
 const yearsBeforeNow = (years) => {
   let current = new Date();  
-  current.setFullYear(current.getFullYear - (years !== undefined ? years : 150));
+  current.setFullYear(current.getFullYear() - (years !== undefined ? years : 150));
   return current;
 };
 
+// Gets the party of the most recent vote for a voter
 const getVoteParty = (voter) => {
-  let candidate, vote, voteParty;
+  let candidate, voteParty;
 
-  vote = votes.find(vote => vote.voter_id === voter.id);
+  let vote = votes.find(vote => vote.voter_id === voter.id);
+  let candidate = getCandidateFromVote(vote);
+  let voteParty = 
   
-  vote !== undefined && 
-    candidate = candidates.find(candidate => candidate.id === vote.candidate_id);
-  
-  candidate !== undefined && 
+  if (candidate !== undefined) 
     voteParty = parties.find(party => party.name === candidate.party_name);
 
   return voteParty;
 };
 
+// Gets the candidate from a given vote
+const getCandidateFromVote = (vote) =>
+  vote === undefined ? undefined :
+  candidates.find(candidate => candidate.id === vote.candidate_id);
+
+// Gets the party from a given candidate's ticket
+const getPartyFromCandidate = (candidate) =>
+  candidate === undefined ? undefined : 
+  parties.find(party => party.name === candidate.party_name);
+
+// Gets a tally of democrat, republican, and other party votes for a collection of Voters
 const getPartyCount = (voterbase) => {
   let partyCount = { "democrat": 0, "republican": 0, "other": 0 };
         
@@ -57,10 +69,6 @@ const getPartyCount = (voterbase) => {
 
   return partyCount;
 };
-
-const getPartyCountByState = (voterbase) => {
-
-}
 ```
 
 
@@ -189,6 +197,24 @@ const getPartyRepresentationByAgeAndRegion = () => {
 - Get US Map with demographics at different age ranges 
   - Could probably simulate this result on the slides with some queries + maps from previous elections (five thirty eight?)
 
-## Query Where Users Have Voted For Candidates from More than One Party
+## Query to Return Votes from Users who have voted for more than one Party
 
-- Get 
+```javascript
+const getMultiPartyVoterTrends = () => {
+  const results = [];
+
+  voters.forEach(voter => {
+    let partiesVoted = [];
+    
+    votes.forEach(vote => {
+      if (vote.voter_id === voter.id) {
+        let candidate, voteParty;
+
+      }
+      vote.voter_id === voter.id && !partiesVoted.includes()
+    })
+  });
+
+  return results;
+};
+```
