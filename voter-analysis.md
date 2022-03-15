@@ -31,17 +31,23 @@ const yearsBeforeNow = (years) => {
 
 // Gets the party of the most recent vote for a voter
 const getVoteParty = (voter) => {
-  let candidate, voteParty;
-
-  let vote = votes.find(vote => vote.voter_id === voter.id);
+  let vote      = getMostRecentVoteFromVoter(voter);
   let candidate = getCandidateFromVote(vote);
-  let voteParty = 
+  let voteParty = getPartyFromCandidate(candidate);
   
   if (candidate !== undefined) 
     voteParty = parties.find(party => party.name === candidate.party_name);
 
   return voteParty;
 };
+
+
+const addToArrayIfNotIncluded = (item, array) => !array.includes(item) && [...array, item];
+
+// Gets the most recent vote for a given voter
+const getMostRecentVoteFromVoter = (voter) => 
+  voter === undefined ? undefined :
+  votes.find(vote => vote.voter_id === voter.id);
 
 // Gets the candidate from a given vote
 const getCandidateFromVote = (vote) =>
@@ -52,6 +58,9 @@ const getCandidateFromVote = (vote) =>
 const getPartyFromCandidate = (candidate) =>
   candidate === undefined ? undefined : 
   parties.find(party => party.name === candidate.party_name);
+
+// Gets the party from a given vote
+const getPartyFromVote = (vote) => getPartyFromCandidate(getCandidateFromVote(vote));
 
 // Gets a tally of democrat, republican, and other party votes for a collection of Voters
 const getPartyCount = (voterbase) => {
@@ -204,16 +213,66 @@ const getMultiPartyVoterTrends = () => {
   const results = [];
 
   voters.forEach(voter => {
+    let allVotes = [];
     let partiesVoted = [];
     
-    votes.forEach(vote => {
-      if (vote.voter_id === voter.id) {
-        let candidate, voteParty;
+    votes.forEach(vote => vote.voter_id === voter.id && allVotes.push(vote));
 
-      }
-      vote.voter_id === voter.id && !partiesVoted.includes()
-    })
+
+    allVotes.forEach(vote => 
+      !partiesVoted.includes(getPartyFromVote(vote)) && 
+      partiesVoted.push(getPartyFromVote(vote)));
+
+    if (partiesVoted.length > 1) {
+      let allVotesWithParty = [];
+
+      // reverse as it was in descending order
+      [...allVotes].reverse().forEach(vote => {
+        allVotesWithParty.push({
+          ...vote,
+          party: getPartyFromVote(vote)
+        })
+      });
+
+
+      results.push({
+        voter: voter,
+        votes: allVotesWithParty
+      });
+    }
   });
+
+  /*
+    'results' now resembles:
+
+    [
+      {
+        voter: {
+          id: { $oid : "622fe039fc13ae46440002ab" },
+          first_name: "Marlee",
+          last_name:"Jozefowicz",
+          // ...
+        },
+        votes: [
+          // Needs to resemble vote schema
+          {
+            id: 123,
+            candidate_id: 321,
+            date: "01/02/20",
+            //...
+            party: "republican"
+          },
+          {
+            id: 456,
+            candidate_id: 654,
+            date: "01/03/21",
+            // ...
+            party: "democrat"
+          }
+        ]
+      }
+    ]
+  */
 
   return results;
 };
